@@ -1,4 +1,5 @@
 import os
+import asyncio
 import requests
 from dotenv import load_dotenv
 from deep_translator import GoogleTranslator
@@ -20,24 +21,28 @@ sources = [
     ("https://www.lookonchain.com", "Lookonchain"),
 ]
 
-headlines = []
+async def send_news():
+    headlines = []
 
-for url, source in sources:
-    try:
-        resp = requests.get(url, timeout=10)
-        lines = resp.text.split("\n")
-        for line in lines:
-            if "<title>" in line.lower():
-                title = line.strip().replace("<title>", "").replace("</title>", "")
-                title = title.split("|")[0].strip()
-                translated = GoogleTranslator(source='auto', target='fa').translate(title)
-                headlines.append(f"📰 {translated} ({source})")
-                break
-    except Exception as e:
-        headlines.append(f"⚠️ خطا در دریافت از {source}")
+    for url, source in sources:
+        try:
+            resp = requests.get(url, timeout=10)
+            lines = resp.text.split("\n")
+            for line in lines:
+                if "<title>" in line.lower():
+                    title = line.strip().replace("<title>", "").replace("</title>", "")
+                    title = title.split("|")[0].strip()
+                    translated = GoogleTranslator(source='auto', target='fa').translate(title)
+                    headlines.append(f"📰 {translated} ({source})")
+                    break
+        except Exception as e:
+            headlines.append(f"⚠️ خطا در دریافت از {source}")
 
-message = "📡 *آخرین اخبار اقتصادی و کریپتو:*\n\n"
-message += "\n".join(headlines)
-message += "\n\nمنبع: منابع معتبر جهانی | ارسال خودکار"
+    message = "📡 *آخرین اخبار اقتصادی و کریپتو:*\n\n"
+    message += "\n".join(headlines)
+    message += "\n\nمنبع: منابع معتبر جهانی | ارسال خودکار"
 
-bot.send_message(chat_id=CHAT_ID, text=message, parse_mode="Markdown")
+    await bot.send_message(chat_id=CHAT_ID, text=message, parse_mode="Markdown")
+
+if __name__ == "__main__":
+    asyncio.run(send_news())
