@@ -1,17 +1,16 @@
 import os
 import requests
-import telegram
 from dotenv import load_dotenv
 from deep_translator import GoogleTranslator
+from telegram import Bot
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-bot = telegram.Bot(token=BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN)
 
-# سایت‌های خبری موردنظر
 sources = [
     ("https://www.bloomberg.com", "Bloomberg"),
     ("https://www.cnbc.com/economy/", "CNBC"),
@@ -37,10 +36,8 @@ for url, source in sources:
     except Exception as e:
         headlines.append(f"⚠️ خطا در دریافت از {source}")
 
-# ساخت متن نهایی
 message = "📡 *آخرین اخبار اقتصادی و کریپتو:*\n\n"
 message += "\n".join(headlines)
 message += "\n\nمنبع: منابع معتبر جهانی | ارسال خودکار"
 
-# ارسال پیام
-bot.send_message(chat_id=CHAT_ID, text=message, parse_mode=telegram.ParseMode.MARKDOWN)
+bot.send_message(chat_id=CHAT_ID, text=message, parse_mode="Markdown")
