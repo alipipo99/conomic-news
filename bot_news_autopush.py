@@ -1,50 +1,45 @@
 import os
 import requests
-from telegram import Bot
-from datetime import datetime
-from googletrans import Translator
+from dotenv import load_dotenv
+from deep_translator import GoogleTranslator
 
-bot_token = os.getenv("BOT_TOKEN")
-chat_id = os.getenv("CHAT_ID")
+load_dotenv()
 
-bot = Bot(token=bot_token)
-translator = Translator()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
-sources = [
-    "https://www.cnbc.com/id/100003114/device/rss/rss.html",  # CNBC Top News
-    "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",  # WSJ Markets
-    "https://www.investing.com/rss/news_25.rss",  # Investing.com Economics
-    "https://cointelegraph.com/rss",  # Cointelegraph Crypto
-    "https://www.theblock.co/rss",  # The Block
-    "https://www.coindesk.com/arc/outboundfeeds/rss/"  # Coindesk
+NEWS_SOURCES = [
+    "https://www.cnbc.com/world/?region=world",
+    "https://www.bloomberg.com",
+    "https://www.tradingeconomics.com",
+    "https://www.coindesk.com",
+    "https://cointelegraph.com",
+    "https://www.theblock.co",
+    "https://finance.yahoo.com"
 ]
 
-def fetch_rss_entries(url):
-    import feedparser
-    return feedparser.parse(url).entries[:10]
-
-def format_news():
+def fetch_headlines():
     headlines = []
-    for src in sources:
+    for url in NEWS_SOURCES:
         try:
-            entries = fetch_rss_entries(src)
-            for entry in entries[:2]:
-                translated = translator.translate(entry.title, dest='fa').text
-                date = datetime.utcnow().strftime('%Y-%m-%d')
-                headlines.append(f"📰 {translated}
-🌍 {entry.link}
-📅 {date}")
+            response = requests.get(f"https://api.codetabs.com/v1/proxy/?quest={url}")
+            if response.status_code == 200 and "<title>" in response.text:
+                title = response.text.split("<title>")[1].split("</title>")[0]
+                translated = GoogleTranslator(source="en", target="fa").translate(title)
+                headlines.append(f"📰 {translated}")
         except Exception as e:
-            headlines.append(f"⚠️ خطا در خواندن منبع: {src}")
+            headlines.append(f"❌ خطا در خواندن {url}")
+    return "\n".join(headlines)
 
-    return "\n\n".join(headlines[:10])
-
-def send_news():
-    msg = format_news()
-    full_msg = f"📢 *۱۰ خبر مهم اقتصادی و کریپتویی*
-
-{msg}"
-    bot.send_message(chat_id=chat_id, text=full_msg, parse_mode='Markdown')
+def send_to_telegram(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": message}
+    try:
+        requests.post(url, data=data)
+    except:
+        pass
 
 if __name__ == "__main__":
-    send_news()
+    news = fetch_headlines()
+    message = f"📡 آخرین اخبار اقتصادی و کریپتو:\n\n{news}\n\nمنبع: منابع معتبر جهانی | ارسال خودکار"
+    send_to_telegram(message)
