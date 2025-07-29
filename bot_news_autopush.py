@@ -1,49 +1,55 @@
 import os
-import requests
+import asyncio
+import logging
 import feedparser
+import requests
+from datetime import datetime
 from deep_translator import GoogleTranslator
 from telegram import Bot
+from telegram.constants import ParseMode
 from dotenv import load_dotenv
 
-# بارگذاری اطلاعات از .env
 load_dotenv()
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-bot = Bot(token=BOT_TOKEN)
 
-# منابع خبری RSS
-rss_sources = [
+bot = Bot(token=BOT_TOKEN)
+logging.basicConfig(level=logging.INFO)
+
+# منابع خبری معتبر همراه با RSS
+RSS_FEEDS = [
+    ("https://feeds.a.dj.com/rss/RSSMarketsMain.xml", "Wall Street Journal"),
+    ("https://www.investing.com/rss/news_25.rss", "Investing.com"),
     ("https://www.cnbc.com/id/100003114/device/rss/rss.html", "CNBC"),
+    ("https://www.bloomberg.com/feed/podcast/etf-report.xml", "Bloomberg"),
+    ("https://www.tradingeconomics.com/united-states/rss.aspx?symbol=united-states", "TradingEconomics"),
     ("https://cointelegraph.com/rss", "Cointelegraph"),
-    ("https://www.theblock.co/rss.xml", "The Block"),
-    ("https://www.lookonchain.com/feed", "Lookonchain")
+    ("https://www.theblock.co/feeds/rss", "The Block"),
+    ("https://www.lookonchain.com/feed/", "Lookonchain")
 ]
 
-def get_latest_news():
+async def fetch_and_translate():
     headlines = []
-    for url, source in rss_sources:
+    for url, source in RSS_FEEDS:
         try:
             feed = feedparser.parse(url)
             if feed.entries:
-                raw_title = feed.entries[0].title
-                translated = GoogleTranslator(source='auto', target='fa').translate(raw_title)
-                headlines.append(f"\ud83d\udcf0 {translated} ({source})")
+                title = feed.entries[0].title
+                translated = GoogleTranslator(source='auto', target='fa').translate(text=title)
+                headlines.append(f"\U0001F4F0 {translated} ({source})")
             else:
-                headlines.append(f"\u26a0\ufe0f خبری دریافت نشد از {source}")
+                headlines.append(f"⚠️ خطا در دریافت از {source}")
         except Exception as e:
-            headlines.append(f"\u26a0\ufe0f خطا در دریافت از {source}")
+            headlines.append(f"⚠️ خطا در دریافت از {source}")
+            logging.warning(f"Error fetching from {source}: {e}")
     return headlines
 
-def format_message():
-    news_items = get_latest_news()
-    message = "\ud83d\udcf1\u00a0آخرین اخبار اقتصادی و کریپتو:\n\n"
-    message += "\n".join(news_items)
-    message += "\n\nمنبع: منابع معتبر جهانی | ارسال خودکار"
-    return message
-
-def send_news():
-    text = format_message()
-    bot.send_message(chat_id=CHAT_ID, text=text)
+async def send_news():
+    headlines = await fetch_and_translate()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    text = f"\U0001F4E1 آخرین اخبار اقتصادی و کریپتو - {now} (UTC):\n\n" + "\n".join(headlines) + "\n\nمنبع: منابع معتبر جهانی | ارسال خودکار"
+    await bot.send_message(chat_id=CHAT_ID, text=text, parse_mode=ParseMode.HTML)
 
 if __name__ == "__main__":
-    send_news()
+    asyncio.run(send_news())
